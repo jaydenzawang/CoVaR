@@ -8,6 +8,7 @@ Created on Mon May 18 13:21:10 2026
 
 import numpy as np
 from scipy.stats import norm, t
+np.random.seed(42)
 
 class GaussianCopulaSingleFactor:
     """

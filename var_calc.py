@@ -7,63 +7,74 @@ Created on Mon May 18 13:33:54 2026
 """
 
 import numpy as np
-from scipy.stats import beta
-import config
+from scipy.stats import beta as scipy_beta
+from scipy.stats import norm, chi2
+from scipy.integrate import quad, dblquad
+from copula import GaussianCopulaSingleFactor, TCopulaSingleFactor
 
 np.random.seed(42)
 
-def calculate_individual_var(target_i, alpha):
+def calculate_individual_var(portfolio, copula, idx, alpha):
     """
-    计算单个金融机构的无条件 VaR_alpha
+    计算单个金融机构的无条件 VaR_alpha (完全模块化版本)
     
     参数:
-    target_i: 机构的索引 (int)
+    portfolio: PortfolioLoss 实例，提供债务面值 u 和 LGD 的 Beta 参数
+    copula: Copula 实例 (Gaussian 或 T)，提供准确的边缘违约概率 p_i
+    idx: 目标机构的索引 (int)
     alpha: 置信水平 (float)
     """
-    # 获取该机构的参数
-    u_i = config.u[target_i]
-    p_i = config.p[target_i]
-    a_i = config.a[target_i]
-    b_i = config.b[target_i]
+    # 1. 模块化动态获取：从传入的 portfolio 和 copula 对象中提取参数
+    u_i = portfolio.u[idx]
+    a_i = portfolio.a[idx]
+    b_i = portfolio.b[idx]
     
-    # 不违约的概率
+    # 核心体现：个体风险度量直接从 Copula 模型中提取其配置的边缘违约概率
+    if hasattr(copula, 'p'):
+        p_i = copula.p[idx]
+    else:
+        raise ValueError("传入的 Copula 对象未配置无条件违约概率矩阵 'p'。")
+        
     prob_no_default = 1.0 - p_i
     
-    print(f"机构 {target_i} 的无条件违约概率为: {p_i:.4f} (不违约概率: {prob_no_default:.4f})")
-    
-    # 如果要求的置信水平 alpha 包含在“不违约”的概率质量中，则 VaR 为 0
+    # 2. 边界保护机制
     if alpha <= prob_no_default:
-        print(f"警告: 置信水平 alpha ({alpha}) <= 不违约概率 ({prob_no_default})。")
-        print("在这样的置信水平下，预期该机构不会发生违约，因此 VaR 严格为 0。")
         return 0.0
         
-    # 否则，需要计算违约条件下的 LGD 分位数
-    # P(\epsilon_i <= x / u_i) = target_prob
+    # 3. 计算违约条件下的 LGD 分位数
     target_prob = (alpha - prob_no_default) / p_i
+    epsilon_quantile = scipy_beta.ppf(target_prob, a_i, b_i)
     
-    # 使用 Beta 分布的 PPF (Percent Point Function，即 CDF 的逆函数) 求解分位数
-    epsilon_quantile = beta.ppf(target_prob, a_i, b_i)
-    
-    # 最终的 VaR = 总负债 * 违约损失率分位数
-    var_alpha = u_i * epsilon_quantile
-    
-    return var_alpha
-
-if __name__ == "__main__":
-    # 使用 config 中定义的 alpha (0.95) 和 target_i (0)
-    alpha_val = config.alpha
-    target_idx = config.target_i
-    
-    var_result = calculate_individual_var(target_idx, alpha_val)
-    
-    print("-" * 50)
-    print(f"机构 {target_idx} 总负债 (u_i) = {config.u[target_idx]:.2f}")
-    print(f"计算所得 VaR_{alpha_val} = {var_result:.4f}")
-    print("-" * 50)
-    
+    return u_i * epsilon_quantile
 
 
-
-    
-    
-    
+def verify_copula_marginal(copula, idx):
+    """
+    【数学与模块化协同强化】
+    通过对系统风险因子进行全概率积分，验证当前选择的 Copula 模型是否满足边缘分布的一致性。
+    该函数完美体现了个体违约概率在数值上是如何通过 Copula 驱动的条件概率集成而来的。
+    """
+    # 场景 A: 如果当前选择的是单因子高斯 Copula
+    if isinstance(copula, GaussianCopulaSingleFactor):
+        def integrand_gauss(Z):
+            # 提取给定 Z 下的条件违约概率
+            return copula.conditional_default_prob(Z)[idx] * norm.pdf(Z)
+        
+        integrated_p, _ = quad(integrand_gauss, -6, 6)
+        
+    # 场景 B: 如果当前选择的是单因子 t-Copula (依赖 Z 和 共同冲击因子 Lambda)
+    elif isinstance(copula, TCopulaSingleFactor):
+        def integrand_t(Lambda, Z):
+            return copula.conditional_default_prob(Z, Lambda)[idx] * norm.pdf(Z) * chi2.pdf(Lambda, df=copula.nu)
+            
+        integrated_p, _ = dblquad(
+            integrand_t, 
+            -6.0, 6.0, 
+            lambda Z: 1e-4, 
+            lambda Z: np.inf
+        )
+    else:
+        # 降级兜底处理
+        integrated_p = copula.p[idx]
+        
+    return integrated_p

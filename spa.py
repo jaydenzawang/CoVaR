@@ -12,6 +12,7 @@ import numpy as np
 from scipy.optimize import root_scalar
 from scipy.stats import norm
 import warnings
+np.random.seed(42)
 
 class SaddlepointApproximation:
     def __init__(self, portfolio, target_i):
@@ -68,10 +69,14 @@ class SaddlepointApproximation:
                 return res.root
             except ValueError:
                 return 0.0
+    
 
     def prob_L_minus_i(self, y, p_cond):
         """SPA 计算尾部概率 P(L_{-i} <= y | \\Theta)"""
-        if y <= 0: return 0.0
+        # if y <= 0: return 0.0
+        if y <= 0: 
+            # 严格返回其他机构全不违约的联合概率
+            return np.prod(1.0 - p_cond[self.mask])
             
         s_hat = self.find_saddlepoint(y, p_cond)
         

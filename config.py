@@ -7,12 +7,12 @@ Created on Mon May 18 13:20:58 2026
 """
 
 import numpy as np
+np.random.seed(42)
 
 # 数值实验的基本假设参数
 N = 1000  # 金融机构的数量
 
 # u_i: 各个机构的总负债 (Total liabilities)
-np.random.seed(42)
 # u = np.random.uniform(10, 100, N)
 u = np.ones(N)
 
@@ -34,5 +34,5 @@ nu = 5.0  # t-分布的自由度 (Degrees of freedom)
 target_i = 0
 
 # CoVaR 及 VaR 的置信水平定义
-alpha = 0.99  # 用于计算个体机构 VaR 的置信水平
+alpha = 0.99  # 用于计算个体机构 VaR 的置信水平 0.99 or 0.999
 beta = 0.99   # 用于计算系统 CoVaR 的置信水平
