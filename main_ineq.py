@@ -6,29 +6,29 @@ Created on Sat May 23 21:43:43 2026
 @author: jaydenwang
 
 功能：基于混合鞍点逼近 (Hybrid SPA) 计算不等号危机条件下的系统共担风险值 CoVaR (L | L_i >= a)
-支持：一键切换 Gaussian / t / Skew-t Copula 
-控制：支持 'fixed' 固定求积 与 'adaptive' 自适应积分双引擎
+支持：一键切换 Gaussian / t / Skew-t Copula 并全面融合同步广播的 Gumbel 相互依赖测度
 """
 
 import numpy as np
 import time
 from scipy.optimize import root_scalar
-from scipy.stats import norm, chi2, beta as scipy_beta
+from scipy.stats import norm, chi2, skewnorm, beta as scipy_beta
 from scipy.special import gamma, roots_genlaguerre
 from numpy.polynomial.hermite import hermgauss
 from numpy.polynomial.legendre import leggauss
-from scipy.integrate import dblquad, tplquad  # 导入高维自适应积分器
+from scipy.integrate import dblquad, tplquad
 
 import config
 from copula import GaussianCopulaSingleFactor, TCopulaSingleFactor, SkewTCopulaSingleFactor
 from loss_model import PortfolioLoss
 from spa import SaddlepointApproximation
 from var_calc import calculate_individual_var
+from gumbel_interplay import gumbel_copula_pdf
 
 # =============================================================================
 # 【核心控制开关】 动态切换积分引擎
 # =============================================================================
-INTEGRATION_METHOD = 'adaptive'  # 可选: 'fixed' (固定节点版) 或 'adaptive' (高精度自适应版)
+INTEGRATION_METHOD = 'fixed'  # 可选: 'fixed' (固定节点版) 或 'adaptive' (高精度自适应版)
 
 if config.COPULA_TYPE == 'Gaussian':
     copula = GaussianCopulaSingleFactor(config.rho, config.p)
@@ -44,12 +44,13 @@ spa = SaddlepointApproximation(portfolio, config.target_i)
 
 
 def evaluate_conditional_cdf_ineq_fixed(l, a):
-    """引擎 A: 固定多层高斯求积网络"""
+    """引擎 A: 固定多层高斯求积网络（全面升级融入 Gumbel 联合测度）"""
     target_i = config.target_i
     u_i = config.u[target_i]
     a_i, b_i = portfolio.a[target_i], portfolio.b[target_i]
     A_bound, B_bound = a / u_i, 1.0
     
+    # LGD (Epsilon) 轴切片
     N_Leg = 32
     x_leg, w_leg = leggauss(N_Leg)
     y_nodes = 0.5 * (B_bound - A_bound) * x_leg + 0.5 * (B_bound + A_bound)
@@ -68,6 +69,8 @@ def evaluate_conditional_cdf_ineq_fixed(l, a):
 
     denom = (1.0 - scipy_beta.cdf(A_bound, a_i, b_i)) * config.p[target_i]
     integral_val = 0.0
+    
+    xi_val = config.XI if hasattr(config, 'XI') else 1.0
 
     if isinstance(copula, GaussianCopulaSingleFactor):
         for i in range(N_GH):
@@ -86,11 +89,20 @@ def evaluate_conditional_cdf_ineq_fixed(l, a):
         for j in range(N_GL):
             Lambda = Lambda_nodes[j]
             w_L = Lambda_weights[j]
+            v_val = chi2.sf(Lambda, config.nu)
+            
             for i in range(N_GH):
                 Z = Z_nodes[i]
                 w_Z = Z_weights[i]
+                
                 if isinstance(copula, SkewTCopulaSingleFactor):
                     w_Z *= 2.0 * norm.cdf(copula.gamma * Z)
+                    u_val = skewnorm.cdf(Z, copula.gamma)
+                else:
+                    u_val = norm.cdf(Z)
+                
+                # 计算网格处的 Gumbel 权重放大因子
+                gumbel_factor = gumbel_copula_pdf(u_val, v_val, xi_val)
                 
                 p_cond = copula.conditional_default_prob(Z, Lambda)
                 p_cond_i = p_cond[target_i]
@@ -99,24 +111,25 @@ def evaluate_conditional_cdf_ineq_fixed(l, a):
                 for k in range(N_Leg):
                     rem_l = l - u_i * y_nodes[k]
                     inner_integral += y_weights[k] * spa.prob_L_minus_i(rem_l, p_cond) * pdf_vals[k]
-                integral_val += (w_Z * w_L) * inner_integral * p_cond_i
+                
+                # 将 Gumbel 修正项注入连乘项
+                integral_val += (w_Z * w_L) * gumbel_factor * inner_integral * p_cond_i
 
     return np.clip(integral_val / denom, 0.0, 1.0)
 
 
 def evaluate_conditional_cdf_ineq_adaptive(l, a):
-    """引擎 B: 自适应高维连续积分 (学术校验版)"""
+    """引擎 B: 自适应高维连续积分（被积核心动态捕获并叠乘 Gumbel 联合测度）"""
     target_i = config.target_i
     u_i = config.u[target_i]
     a_i, b_i = portfolio.a[target_i], portfolio.b[target_i]
     A_bound = a / u_i
     
     denom = (1.0 - scipy_beta.cdf(A_bound, a_i, b_i)) * config.p[target_i]
+    xi_val = config.XI if hasattr(config, 'XI') else 1.0
 
     if isinstance(copula, GaussianCopulaSingleFactor):
-        # 2D 自适应积分: (eps, Z)
         def integrand_2d(eps, Z):
-            # dblquad 传参顺序为 (y, x) -> y=eps, x=Z
             p_cond = copula.conditional_default_prob(Z)
             p_cond_i = p_cond[target_i]
             rem_l = l - u_i * eps
@@ -124,7 +137,6 @@ def evaluate_conditional_cdf_ineq_adaptive(l, a):
             pdf_eps = scipy_beta.pdf(eps, a_i, b_i)
             return prob_SPA * pdf_eps * p_cond_i * norm.pdf(Z)
             
-        # Z 为外层 x 轴 [-inf, inf]，eps 为内层 y 轴 [A_bound, 1.0]
         integral_val, _ = dblquad(
             integrand_2d, -np.inf, np.inf, 
             lambda z: A_bound, lambda z: 1.0, 
@@ -132,9 +144,7 @@ def evaluate_conditional_cdf_ineq_adaptive(l, a):
         )
 
     elif isinstance(copula, (TCopulaSingleFactor, SkewTCopulaSingleFactor)):
-        # 3D 嵌套自适应积分: (eps, Z, Lambda)
         def integrand_3d(eps, Z, Lambda):
-            # tplquad 传参顺序为 (z, y, x) -> z=eps, y=Z, x=Lambda
             p_cond = copula.conditional_default_prob(Z, Lambda)
             p_cond_i = p_cond[target_i]
             rem_l = l - u_i * eps
@@ -143,12 +153,19 @@ def evaluate_conditional_cdf_ineq_adaptive(l, a):
             pdf_eps = scipy_beta.pdf(eps, a_i, b_i)
             pdf_L = chi2.pdf(Lambda, config.nu)
             pdf_Z = norm.pdf(Z)
+            
             if isinstance(copula, SkewTCopulaSingleFactor):
                 pdf_Z *= 2.0 * norm.cdf(copula.gamma * Z)
+                u_val = skewnorm.cdf(Z, copula.gamma)
+            else:
+                u_val = norm.cdf(Z)
                 
-            return prob_SPA * pdf_eps * p_cond_i * pdf_Z * pdf_L
+            v_val = chi2.sf(Lambda, config.nu)
+            # 动态运算当前点的 Gumbel 因子联结测度
+            gumbel_factor = gumbel_copula_pdf(u_val, v_val, xi_val)
+                
+            return prob_SPA * pdf_eps * p_cond_i * pdf_Z * pdf_L * gumbel_factor
             
-        # Lambda 为 x 轴 [0, inf], Z 为 y 轴 [-inf, inf], eps 为 z 轴 [A_bound, 1.0]
         integral_val, _ = tplquad(
             integrand_3d, 0, np.inf,
             lambda lam: -np.inf, lambda lam: np.inf,
@@ -177,7 +194,7 @@ def calculate_covar_ineq(beta, a_val):
 if __name__ == "__main__":
     start_time = time.time()
     print("=" * 60)
-    print(f"模式: SPA + 不等号场景 | 模型: {config.COPULA_TYPE} | 积分引擎: {INTEGRATION_METHOD}")
+    print(f"模式: SPA + 不等号场景 | 模型: {config.COPULA_TYPE} | 依赖系数 XI: {config.XI} | 积分引擎: {INTEGRATION_METHOD}")
     print("=" * 60)
     
     a_val_true = calculate_individual_var(portfolio, copula, config.target_i, config.alpha)

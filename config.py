@@ -33,8 +33,8 @@ rho = np.random.uniform(0.3, 0.6, N)
 
 # 【核心控制键】可选值: 'Gaussian' 或 't' 或 'Skew-t'
 # 更改此处参数后，所有主计算程序 (main, main_ineq, mc_verify) 将自动切换，无需手动注释代码
-COPULA_TYPE = 't'
-XI = 2.0  # 新增依赖参数：XI = 1.0 退化为独立；XI > 1.0 开启 Gumbel 耦合
+COPULA_TYPE = 'Gaussian'
+XI = 1.0  # 新增依赖参数：XI = 1.0 退化为独立；XI > 1.0 开启 Gumbel 耦合
 
 # [t 和 Skew-t 共用] 共同冲击因子 Lambda ~ Chi^2(nu) 的自由度
 nu = 5.0  
