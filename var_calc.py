@@ -18,12 +18,9 @@ from scipy.stats import norm, chi2, skewnorm
 from scipy.integrate import quad, dblquad
 
 # 导入配置和 Gumbel 联结函数
-import config
 from gumbel_interplay import gumbel_copula_pdf
 # 导入所有的 Copula 结构，确保类型识别完整
 from copula import GaussianCopulaSingleFactor, TCopulaSingleFactor, SkewTCopulaSingleFactor
-
-np.random.seed(42)
 
 def calculate_individual_var(portfolio, copula, idx, alpha):
     """
@@ -59,8 +56,8 @@ def verify_copula_marginal(copula, idx):
     通过对系统性风险因子空间进行全概率自适应积分，计算集成的边缘违约概率。
     已全面升级：支持 XI > 1 时 Gumbel Copula 带来的 Z 和 Lambda 联合密度变形校验。
     """
-    # 获取全局配置中的依赖参数 xi
-    xi_val = config.XI if hasattr(config, 'XI') else 1.0
+    # Use the parameter with which this copula was actually calibrated.
+    xi_val = float(getattr(copula, "xi", 1.0))
 
     # 场景 A: 单因子高斯 Copula (1D 因子空间积分，天然无 Lambda，不受 XI 影响)
     if isinstance(copula, GaussianCopulaSingleFactor):
@@ -116,3 +113,21 @@ def verify_copula_marginal(copula, idx):
         
     else:
         raise TypeError("未知的 Copula 依赖类型，无法进行全概率边缘校验。")
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
