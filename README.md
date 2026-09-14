@@ -106,6 +106,7 @@ EXPOSURE_DISTRESS_THRESHOLD = None
 - `SPA_QUANTILE_TOL`：分位数求解的绝对容差。
 - `SPA_N_JOBS`：因子积分工作进程数；1 表示串行。
 - `SPA_MGF_GRID_SIZE`、`SPA_MGF_S_MIN/MAX`：MGF 插值网格。
+- `SPA_EXACT_MGF_RADIUS`：当标量鞍点满足 `abs(s)*max(u) < 0.15` 时使用解析 MGF 及导数，避免均值附近 LR 公式放大样条误差；通常保留默认值。
 - `SPA_SADDLE_BOUND`、`SPA_ROOT_TOL`、`SPA_MEAN_REGION`、`SPA_TAIL_BOUND_TOL`：
   鞍点搜索和数值精度设置。鞍点范围必须包含在 MGF 网格范围内。
 
@@ -210,7 +211,7 @@ main.py 的完整本地依赖闭包共 **14 个 Python 文件**：
 | `pmc_engine.py` | PMC 模拟和条件风险估计 |
 | `ce_rqmc_engine.py` | CE 校准及随机化 QMC 估计 |
 
-另保留 `convergence_check.py` 和 `tests/` 下四个测试文件。
+另保留 `convergence_check.py` 和 `tests/` 下五个测试文件。
 前者是数值精度检查工具，目前只覆盖 CoVaR/CoES；后者是核心回归验证，
 均不属于已经废弃的 Section 5 批量实验。
 
@@ -278,7 +279,7 @@ pmc_engine.py 承担；`var_calc.py` 则被主体直接调用，必须保留。
 python -m pytest -q CoVaR_codes/tests
 ```
 
-清理后 **70 项自动测试全部通过**。自动测试覆盖原有公式、exposure 公式与 PMC 数值对照、全部方法/指标组合在两种条件下的参数传递，以及统一 main 入口、
+数值稳定性修复后 **78 项自动测试全部通过**。自动测试覆盖原有公式、exposure 公式与 PMC 数值对照、全部方法/指标组合在两种条件下的参数传递，以及统一 main 入口、
 各指标 SE、计时、零阈值、t/skew-t Gumbel 依赖模型，以及统一入口的实际执行。
 原配置下的生产规模 SPA 运行另作实算核验；benchmark 的入口验证使用缩小的模拟预算，
 不等同于完整的论文精度实验。
@@ -306,3 +307,5 @@ SPA 复用固定 MGF 导数系数与同一鞍点的中间量；PMC 减少临时�
 公式、积分阶数、求根容差、预算和用户配置均未修改。
 测试增加缓存失效及完整/稀疏 LGD 路径一致性验证。
 完整时间口径、前后对照和保留的已有数值限制见 `../output/spa_optimization_validation.md`。
+
+2026-09-13 的 E-CoVaR/E-CoES 差异诊断与修复证据见 [验证报告](../output/exposure_discrepancy_validation.md)。

@@ -287,4 +287,11 @@ def print_result(result):
         # not separate per-measure times or the average time of one replication.
         show_time(" + ".join(labels) + "（全部重复的合计时间）", "estimation")
     show_time("总计（含准备及全部计算）", "total")
+    cpu = result.timings["total"].cpu_seconds - sum(
+        result.timings[p].cpu_seconds for p in ("setup", "threshold")
+    )
+    wall = result.timings["total"].wall_seconds - sum(
+        result.timings[p].wall_seconds for p in ("setup", "threshold")
+    )
+    print(f"总计（不含准备）：CPU = {cpu:.6f} s；wall = {wall:.6f} s")
     print()

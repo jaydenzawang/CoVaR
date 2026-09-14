@@ -12,7 +12,7 @@ rng = np.random.default_rng(42)
 
 # 优先级 1: 投资组合与资产基础参数 (所有模型共用)
 
-N = 100  # 金融机构/债务人的总数量
+N = 500  # 金融机构/债务人的总数量
 
 # u_i: 各个机构的总负债敞口 (Total liabilities)
 u = np.ones(N)
@@ -52,7 +52,7 @@ gamma = 0.5
 # 优先级 3: 主程序控制、危机场景与风险度量置信水平
 
 # main.py 读取这里的参数；方法和指标在 main.py 的 return 行选择。
-CONDITION_MODE = "equality"  # "equality" 或 "inequality"
+CONDITION_MODE = "inequality"  # "equality" 或 "inequality"
 SHOW_PROGRESS = False  # 默认只显示最终结果与耗时；True 可另行开启进度条
 
 # None: 按 alpha 自动求 VaR；数值: 所有方法使用同一个固定危机阈值。
@@ -61,10 +61,11 @@ SYSTEM_DISTRESS_THRESHOLD = None
 EXPOSURE_DISTRESS_THRESHOLD = None
 # Exposure 自动阈值统一由 SPA 求得；benchmark 的 SE 不包含阈值误差。
 
-target_i = 20  # 从 0 开始：200 表示第 201 个机构
+target_i = 200  # 从 0 开始：200 表示第 201 个机构
+# print(p[target_i])
 
-alpha = 0.99  # 危机阈值置信水平：CoVaR 用个体 VaR；E-CoVaR 用组合 VaR
-beta = 0.99   # 条件分位数置信水平：CoVaR / E-CoVaR 共用
+alpha = 0.999  # 危机阈值置信水平：CoVaR 用个体 VaR；E-CoVaR 用组合 VaR
+beta = 0.999   # 条件分位数置信水平：CoVaR / E-CoVaR 共用
 
 # 优先级 4: SPA 精度与并行设置（也用于共用模型构建及组合 VaR）
 SPA_GAUSSIAN_FACTOR_ORDER = 512
@@ -75,6 +76,8 @@ SPA_QUANTILE_TOL = 1e-5
 SPA_SADDLE_BOUND = 20.0       # 必须在下面的 MGF 网格范围内
 SPA_ROOT_TOL = 1e-10
 SPA_MEAN_REGION = 1e-2
+# 在 |s|*max(u) < 此值时使用精确 MGF，避免二阶 LR 的均值附近消减误差。
+SPA_EXACT_MGF_RADIUS = 0.15
 SPA_TAIL_BOUND_TOL = 1e-12
 
 # 因子节点并行进程数。设为 1 可进行串行复核。
@@ -86,7 +89,7 @@ SPA_MGF_S_MAX = 25.0
 
 # 优先级 5: Plain Monte Carlo benchmark 参数
 
-PMC_NUM_SIMS = 1_000_000     # 每次独立重复的路径数
+PMC_NUM_SIMS = 5_000_000 # 1_000_000     # 每次独立重复的路径数
 PMC_NUM_RUNS = 10            # 独立重复次数，用于计算 standard error
 PMC_BATCH_SIZE = 4_096       # 分批生成路径，控制内存占用
 PMC_EQUALITY_BANDWIDTH_RATIO = 0.03  # CoVaR/CoES: h = ratio * u_i
@@ -98,8 +101,8 @@ PMC_BASE_SEED = 42           # 第 r 次重复使用 BASE_SEED + r
 
 # Sobol 点数必须是 2 的整数次幂。
 CE_RQMC_REPLICAS = 32
-CE_RQMC_PILOT_SIZE = 8_192
-CE_RQMC_FINAL_SIZE = 16_384
+CE_RQMC_PILOT_SIZE = 262_144 # 8_192
+CE_RQMC_FINAL_SIZE = 1_048_576 # 32_768 # 16_384
 
 CE_RQMC_ELITE_FRACTION = 0.10
 CE_RQMC_MAX_ITERATIONS = 5  # Hui Wang: iterative CE calibration uses at most five updates

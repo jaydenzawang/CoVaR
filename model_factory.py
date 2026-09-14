@@ -112,6 +112,7 @@ def build_model_context(cfg=config, n_gh=None, n_gl=None, mgf_grid_size=None):
         s_min=float(getattr(cfg, "SPA_MGF_S_MIN", -25.0)),
         s_max=float(getattr(cfg, "SPA_MGF_S_MAX", 25.0)),
         grid_size=mgf_grid_size,
+        exact_mgf_radius=getattr(cfg, "SPA_EXACT_MGF_RADIUS", 0.15),
     )
     factors = build_factor_grid(copula, xi=cfg.XI, n_gh=n_gh, n_gl=n_gl)
     integrated_pd = factors.expectation(factors.p_cond)

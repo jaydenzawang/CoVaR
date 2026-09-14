@@ -6,7 +6,7 @@ Created on Mon May 18 13:21:23 2026
 @author: jaydenwang
 
 功能：投资组合损失模型，包含 LGD 的 Beta 分布 MGF 计算
-升级：全面引入【策略一】高密度三次样条插值矩阵，将百万次特殊函数调用退化为极速代数多项式运算。
+采用高密度三次样条插值；均值附近的标量鞍点使用解析 MGF，避免 LR 公式放大插值误差。
 """
 
 import numpy as np
@@ -15,9 +15,9 @@ from scipy.interpolate import CubicSpline
 
 class PortfolioLoss:
     """
-    投资组合损失模型，包含 LGD 的 Beta 分布 MGF 计算 (三次样条插值极速优化版)
+    投资组合损失模型，采用样条与均值附近解析求值的 Beta MGF。
     """
-    def __init__(self, u, a, b, s_min=-25.0, s_max=25.0, grid_size=1501):
+    def __init__(self, u, a, b, s_min=-25.0, s_max=25.0, grid_size=1501, exact_mgf_radius=0.15):
         self.u = np.asarray(u, dtype=float)
         self.a = np.asarray(a, dtype=float)
         self.b = np.asarray(b, dtype=float)
@@ -57,6 +57,10 @@ class PortfolioLoss:
         hyp_k4 = np.array([hyp1f1(self.a + 4, self.a + self.b + 4, s * self.u) for s in self.s_grid])
         self.spline_k4 = CubicSpline(self.s_grid, hyp_k4, axis=0, extrapolate=False)
         
+        self.exact_mgf_radius = float(exact_mgf_radius)
+        if not np.isfinite(self.exact_mgf_radius) or self.exact_mgf_radius <= 0:
+            raise ValueError("exact_mgf_radius must be finite and positive")
+        self._max_exposure = float(np.max(self.u))
         self.expected_epsilon = self.a / (self.a + self.b)
         # Parameters are fixed for this model context. Keep multiplication order
         # unchanged: coefficient * spline value * exposure power.
@@ -65,16 +69,23 @@ class PortfolioLoss:
         self._exposure_power = {k: self.u ** k for k in (1, 2, 3, 4)}
         
     def mgf_epsilon(self, s):
-        """使用三次样条插值极速替代原有的原生 hyp1f1 计算"""
+        """计算 MGF；均值附近的标量鞍点直接调用 hyp1f1。"""
         self._validate_s(s)
+        # The second-order LR formula contains cancelling inverse powers of w.
+        # Cubic-spline error in K(s), although tiny absolutely, is amplified near
+        # the mean. Use the analytic MGF and its consistent derivatives there.
+        if np.ndim(s) == 0 and abs(s) * self._max_exposure < self.exact_mgf_radius:
+            return hyp1f1(self.a, self.a + self.b, s * self.u)
         return self.spline_k0(s)
         
     def mgf_epsilon_deriv(self, s, k=1):
-        """基于对应的预计算样条矩阵计算 MGF 的各阶导数（融入敞口链式法则）"""
+        """计算与 MGF 求值方式一致的各阶导数，包含敞口链式法则。"""
         self._validate_s(s)
         if k not in (1, 2, 3, 4):
             raise ValueError("only derivatives of order 1 through 4 are supported")
         coef = self._derivative_coef[k]
+        if np.ndim(s) == 0 and abs(s) * self._max_exposure < self.exact_mgf_radius:
+            return coef * hyp1f1(self.a + k, self.a + self.b + k, s * self.u) * self._exposure_power[k]
         if k == 1:
             return coef * self.spline_k1(s) * self.u
         elif k == 2:
