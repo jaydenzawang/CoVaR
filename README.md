@@ -7,7 +7,7 @@
 There is no need to modify the intermediate computation modules.
 The output consists of CoVaR/E-CoVaR, CoES/E-CoES, and computation time of corresponding approach, which is one of spa, pmc, and ce_rqmc.
 
-## 1. Architecture and File Responsibilities
+## 1. Files
 
 ```text
 config.py                         Parameters and runtime controls
@@ -41,7 +41,7 @@ The following diagram shows the computation workflow:
 ```mermaid
 flowchart TD
     A[config.py: Parameters] --> C[calculation_runner.py: Unified control]
-    B[main.py: Select method and measures] --> C
+    B[main.py: Select method and risk measures] --> C
     C --> D[model_factory.py: Construct model]
     D --> E[copula.py + gumbel_interplay.py]
     D --> F[loss_model.py + factor_integration.py]
@@ -64,7 +64,7 @@ flowchart TD
 Note: Automatic exposure distress thresholds currently use the same SPA portfolio VaR across all methods;
 final conditional risk estimation for PMC and CE-RQMC is performed by their respective simulation engines.
 
-## 2. Select the Method and Measure in `main.py`
+## 2. Select the method and risk measures in `main.py`
 
 Modify the following line in the single entry point, `main.py`:
 
