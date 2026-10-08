@@ -14,7 +14,7 @@
 
    ```python
    COPULA_TYPE = 't' # 'Gaussian', 't', or 'Skew-t'
-   XI = 1.0
+   XI = 1.0 # Dependence parameter for Gumbel copula
    CONDITION_MODE = "equality" # or "inequality"
    target_i = 200  # The 201st obligor (zero-based indexing)
    alpha = 0.99  # or 0.999
