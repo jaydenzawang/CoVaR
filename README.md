@@ -1,11 +1,35 @@
 # CoVaR Main Computation Program
 
-**Workflow:**
+## 0. Quick Start
 
+1. Select the method and measures in `main.py`. The current default computes CoVaR and CoES using SPA:
 
-**select the method and systemic risk measures in `main.py` → modify parameters in `config.py` → run `main.py`.**
-There is no need to modify the intermediate computation modules.
-The output consists of CoVaR/E-CoVaR, CoES/E-CoES, and computation time of corresponding approach, which is one of spa, pmc, and ce_rqmc.
+   ```python
+   # "spa", "pmc", "ce_rqmc"
+   # "covar", "coes", "ecovar", "ecoes"
+   return run_calculation("spa", "coes", cfg)
+   ```
+
+2. Set the model and distress parameters in `config.py`, or keep the defaults for a first run:
+
+   ```python
+   COPULA_TYPE = 't' # 'Gaussian', 't', or 'Skew-t'
+   XI = 1.0
+   CONDITION_MODE = "equality" # or "inequality"
+   target_i = 200  # The 201st obligor (zero-based indexing)
+   alpha = 0.99  # or 0.999
+   beta = 0.99  # or 0.999
+   ```
+
+   The default portfolio contains 500 obligors. See Sections 2 and 3 below for other methods, measures, and parameters.
+
+3. Run the program from the same folder:
+
+   ```bash
+   python main.py
+   ```
+
+   The terminal displays the selected model and conditioning setting, risk estimates, and CPU / wall time. PMC and CE-RQMC also report simulation standard errors. There is no need to modify the intermediate computation modules.
 
 ## 1. Files
 
@@ -26,7 +50,7 @@ calculation_runner.py             Shared execution workflow, distress thresholds
 main.py                           Entry for the main computation; selects the method and measures
 ```
 
-Supporting core modules:
+Supporting modules:
 
 - `copula.py`, `gumbel_interplay.py`: Copula, Gumbel dependence, and conditional default probabilities.
 - `factor_integration.py`: Gauss–Legendre/Rosenblatt integration nodes and weights in probability space.
@@ -34,14 +58,14 @@ Supporting core modules:
 - `var_calc.py`: Analytical calculation of individual VaR; portfolio VaR is calculated by the SPA risk engine.
 
 For a given risk measure, all three methods share the portfolio parameters, confidence levels, conditioning direction, and distress-threshold conventions.
-`main.py` only specifies the method and measures; algorithm and reporting logic are not duplicated in the main file.
+`main.py` only specifies the method and measures.
 
 The following diagram shows the computation workflow:
 
 ```mermaid
 flowchart TD
     A[config.py: Parameters] --> C[calculation_runner.py: Unified control]
-    B[main.py: Select method and risk measures] --> C
+    B[main.py: Select method and measures] --> C
     C --> D[model_factory.py: Construct model]
     D --> E[copula.py + gumbel_interplay.py]
     D --> F[loss_model.py + factor_integration.py]
@@ -64,7 +88,7 @@ flowchart TD
 Note: Automatic exposure distress thresholds currently use the same SPA portfolio VaR across all methods;
 final conditional risk estimation for PMC and CE-RQMC is performed by their respective simulation engines.
 
-## 2. Select the method and risk measures in `main.py`
+## 2. Select the method and measure in `main.py`
 
 Modify the following line in the single entry point, `main.py`:
 
@@ -95,7 +119,7 @@ ES automatically calculates the corresponding quantile first; PMC and CE-RQMC re
 
 ## 3. Select parameters in `config.py`
 
-### Portfolio and Model
+### Portfolio and model
 
 - `N`, `u`, `a`, `b`, `p`, `rho`: Portfolio size, exposures, Beta LGD shape parameters, PD, and factor loadings.
   All arrays must have length N.
@@ -104,7 +128,7 @@ ES automatically calculates the corresponding quantile first; PMC and CE-RQMC re
 - `XI`: Gumbel dependence parameter for t / skew-t; 1 indicates independent scale factors.
 - `rho` is a loading; for example, `sqrt(0.50)` corresponds to a latent-variable asset correlation of 0.50.
 
-### Distress Conditions
+### Distress conditions
 
 ```python
 CONDITION_MODE = "equality"   # or "inequality"
@@ -114,4 +138,3 @@ alpha = 0.99                 # Confidence level for the distress threshold
 beta = 0.99                  # Confidence level for the conditional quantile / ES
 
 ```
-
