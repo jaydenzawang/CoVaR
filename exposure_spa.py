@@ -1,4 +1,6 @@
-"""SPA for the marked law L | L_i <= y in the draft's exposure formulas."""
+"""
+SPA for the marked law L | L_i <= y in the draft's exposure formulas.
+"""
 
 import numpy as np
 from scipy.special import roots_jacobi, betainc
@@ -7,11 +9,7 @@ from spa import SaddlepointApproximation
 
 
 def marked_lgd_rule(portfolio, i, y, order):
-    """Unnormalized moments on [0,y], with the beta singularity integrated out.
 
-    Gauss-Jacobi absorbs x**(a-1). Normalization uses the exact beta CDF;
-    increasing order controls the remaining smooth integrand error.
-    """
     a, b, u = portfolio.a[i], portfolio.b[i], portfolio.u[i]
     mass = float(betainc(a, b, y / u))
     if y == 0:
@@ -59,8 +57,7 @@ class MarkedSaddlepoint(SaddlepointApproximation):
         return super().cgf_deriv(s, p_cond, k) + marked
 
     def density_upper_bound(self, y, p_cond, s):
-        # Joint marked density is bounded by the unmarked density; normalize
-        # by P(L_i<=y_mark | Theta) to bound the marked conditional law.
+        # Joint marked density is bounded by the unmarked density; normalize by P(L_i<=y_mark | Theta) to bound the marked conditional law.
         full = SaddlepointApproximation(self.portfolio, saddle_bound=self.saddle_bound)
         fi = 1-p_cond[self.target_i]+p_cond[self.target_i]*self.mass
         return full.density_upper_bound(y, p_cond, s) / fi

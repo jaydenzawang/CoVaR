@@ -97,13 +97,7 @@ class RiskEstimate:
 
 
 class HybridSPARiskEngine:
-    """Compute conditional generalized quantiles and robust conditional ES.
 
-    ``mode='equality'`` implements regular conditioning for positive ``a`` and
-    the non-default atom when ``a=0``.  ``mode='inequality'`` implements the
-    positive truncated-LGD event and reduces exactly to the unconditional loss
-    distribution when ``a=0``.
-    """
 
     def __init__(
         self,
@@ -187,9 +181,7 @@ class HybridSPARiskEngine:
         lower_probability = beta_dist.cdf(a / u_i, shape_a, shape_b)
         survival = beta_dist.sf(a / u_i, shape_a, shape_b)
         uniform_nodes = 0.5 * (self._legendre_nodes + 1.0)
-        # Smooth the beta-PPF upper-endpoint singularity.  For beta shape b>1,
-        # q=1-(1-t)^b makes the conditional quantile asymptotically linear in
-        # t near one; for b<=1 the identity map is already regular enough.
+
         endpoint_power = max(float(shape_b), 1.0)
         conditional_probabilities = 1.0 - (1.0 - uniform_nodes) ** endpoint_power
         probabilities = lower_probability + survival * conditional_probabilities

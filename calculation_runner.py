@@ -1,7 +1,6 @@
-"""Shared execution, timing and reporting for the method/measure main files.
-
-Numerical formulas belong to the engines. This module builds one context per
-run and makes the threshold, timing and replication-SE conventions explicit.
+"""
+Shared execution and timing for the method/measure main files.
+Numerical formulas belong to the engines.
 """
 
 from dataclasses import dataclass, field
@@ -151,12 +150,7 @@ def summarize_replications(estimates, labels):
 
 
 def run_calculation(method, measure, cfg=config, *, mode=None, report=True):
-    """Return results AND timings; all ordinary controls come from cfg.
 
-    ES requests also report their prerequisite quantile. Quantile-only requests
-    skip the ES calculation. CE errors condition on the one trained proposal;
-    both simulation methods condition on the fixed input distress threshold.
-    """
     mode = cfg.CONDITION_MODE if mode is None else mode
     _validate_run(cfg, method, measure, mode)
     direction, with_es, q_label, es_label = MEASURES[measure]
@@ -261,9 +255,9 @@ def run_calculation(method, measure, cfg=config, *, mode=None, report=True):
 
 
 def print_result(result):
-    """Compact result report; diagnostics remain available on the result object."""
-    condition = "等式条件" if result.mode == "equality" else "不等式条件"
-    print(f"{METHOD_LABELS[result.method]}（{condition}）")
+    
+    condition = "Equality condition" if result.mode == "equality" else "Inequality condition"
+    print(f"{METHOD_LABELS[result.method]}({condition})")
     for label, value in result.values.items():
         suffix = f"    SE = {result.standard_errors[label]:.8g}" if label in result.standard_errors else ""
         print(f"{label} = {value:.10f}{suffix}")
@@ -271,27 +265,27 @@ def print_result(result):
     def show_time(label, *phases):
         cpu = sum(result.timings[p].cpu_seconds for p in phases)
         wall = sum(result.timings[p].wall_seconds for p in phases)
-        print(f"{label}：CPU = {cpu:.6f} s；wall = {wall:.6f} s")
+        print(f"{label}:CPU = {cpu:.6f} s; wall = {wall:.6f} s")
 
     print()
-    show_time("准备（模型与危机阈值）", "setup", "threshold")
+    show_time("Setup (model and distress threshold)", "setup", "threshold")
     labels = list(result.values)
     if result.method == "spa":
         show_time(labels[0], "quantile")
         if "es_incremental" in result.timings:
-            show_time(f"{labels[1]}（增量，已知 {labels[0]}）", "es_incremental")
+            show_time(f"{labels[1]} (extra time, given {labels[0]})", "es_incremental")
     else:
         if result.method == "ce_rqmc":
-            show_time("CE 初步估计与校准", "preliminary", "calibration")
+            show_time("CE initial estimate and fit", "preliminary", "calibration")
         # Both measures use the same simulated paths; these are joint runtimes,
         # not separate per-measure times or the average time of one replication.
-        show_time(" + ".join(labels) + "（全部重复的合计时间）", "estimation")
-    show_time("总计（含准备及全部计算）", "total")
+        show_time(" + ".join(labels) + " (total time for all runs)", "estimation")
+    show_time("Total (setup and all steps)", "total")
     cpu = result.timings["total"].cpu_seconds - sum(
         result.timings[p].cpu_seconds for p in ("setup", "threshold")
     )
     wall = result.timings["total"].wall_seconds - sum(
         result.timings[p].wall_seconds for p in ("setup", "threshold")
     )
-    print(f"总计（不含准备）：CPU = {cpu:.6f} s；wall = {wall:.6f} s")
+    print(f"Total (without setup): CPU = {cpu:.6f} s; wall = {wall:.6f} s")
     print()

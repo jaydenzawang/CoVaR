@@ -1,8 +1,5 @@
-"""Deterministic integration over the common-factor distribution.
-
-The grid is built once and reused at every CDF evaluation.  This provides
-common numerical points during quantile root finding and removes the large
-amount of duplicated quadrature code that previously lived in four scripts.
+"""
+Deterministic integration over the common-factor distribution.
 """
 
 from dataclasses import dataclass
@@ -53,14 +50,7 @@ def _uniform_rule(order):
 
 
 def build_factor_grid(copula, xi=1.0, n_gh=128, n_gl=48):
-    """Build a probability-space quadrature using a Rosenblatt transform.
 
-    Integrating over uniforms gives substantially better tail resolution than
-    Hermite quadrature for high conditional quantiles.  In the dependent case
-    it also avoids direct integration of the corner-singular Gumbel density.
-    ``n_gh`` and ``n_gl`` are retained as argument names for API compatibility;
-    they now denote the orders of the first and second uniform coordinates.
-    """
     if xi < 1:
         raise ValueError("the Gumbel parameter xi must be at least one")
     if n_gh < 8 or n_gl < 8:

@@ -14,9 +14,9 @@
 
    ```python
    COPULA_TYPE = 't' # 'Gaussian', 't', or 'Skew-t'
-   XI = 1.0 # Dependence parameter for Gumbel copula
-   CONDITION_MODE = "equality" # or "inequality"
-   target_i = 200  # The 201st obligor (zero-based indexing)
+   XI = 1.0  # Dependence parameter for Gumbel copula
+   CONDITION_MODE = "equality" # "equality" or "inequality"
+   target_i = 200  # The 201st obligor
    alpha = 0.99  # or 0.999
    beta = 0.99  # or 0.999
    ```
@@ -45,7 +45,7 @@ Computation core
     ├─ pmc_engine.py              Plain Monte Carlo
     └─ ce_rqmc_engine.py          Iterative CE and randomized QMC
     ↓
-calculation_runner.py             Shared execution workflow, distress thresholds, timing, repeated runs, SE, and result output
+calculation_runner.py             Shared execution procedures, distress thresholds, timing, repeated runs, SE, and result output
     ↓
 main.py                           Entry for the main computation; selects the method and measures
 ```
@@ -121,11 +121,10 @@ ES automatically calculates the corresponding quantile first; PMC and CE-RQMC re
 
 ### Portfolio and model
 
-- `N`, `u`, `a`, `b`, `p`, `rho`: Portfolio size, exposures, Beta LGD shape parameters, PD, and factor loadings.
-  All arrays must have length N.
+- `N`, `u`, `a`, `b`, `p`, `rho`: Portfolio size, exposures, Beta LGD shape parameters, PD, and factor loadings. All arrays must have length N.
 - `COPULA_TYPE`: `'Gaussian'`, `'t'`, or `'Skew-t'`.
 - `nu`: Degrees of freedom for t / skew-t; `gamma`: Skewness for skew-t.
-- `XI`: Gumbel dependence parameter for t / skew-t; 1 indicates independent scale factors.
+- `XI`: Gumbel dependence parameter for t / skew-t; 1.0 indicates independence between systematic factor Z and common shock factor Lambda.
 - `rho` is a loading; for example, `sqrt(0.50)` corresponds to a latent-variable asset correlation of 0.50.
 
 ### Distress conditions

@@ -1,9 +1,5 @@
-"""Faithful CE-RQMC benchmark for conditional CoVaR and robust CoES.
-
-Unlike the Hybrid-SPA engine, this benchmark simulates the target obligor and
-uses the conditioning weights stated in the paper.  Equality conditioning at a
-positive loss uses a uniform kernel; equality at zero uses the exact non-default
-atom; inequality at zero is the unconditional portfolio.
+"""
+Reliable CE-RQMC benchmark for CoVaR and CoES
 """
 
 import numpy as np
@@ -51,9 +47,7 @@ class IterativeCE_RQMC:
         self.nu = float(getattr(copula, "nu", np.nan))
         self.gamma = float(getattr(copula, "gamma", 0.0))
         self.n_obligors = len(portfolio.u)
-        # ``bandwidth`` is the single final-estimation bandwidth.  Calibration
-        # may use a wider band to obtain a stable proposal without changing the
-        # final self-normalized estimator's target.
+        # ''bandwidth'' is the single final-estimation bandwidth. 
         self.bandwidth = float(bandwidth)
         if self.bandwidth <= 0:
             raise ValueError("bandwidth must be positive")
@@ -270,8 +264,7 @@ class IterativeCE_RQMC:
         for iteration in iterations:
             for attempt in range(max_retries + 1):
                 if self.mode == "equality" and a_val > 0:
-                    # Widen only the pilot band.  The final estimator continues
-                    # to use self.bandwidth.
+                    # Widen only the pilot band.  The final estimator continues to use self.bandwidth.
                     attempt_size = int(n0)
                     pilot_bandwidth = self.calibration_bandwidth * (2**attempt)
                 else:
@@ -406,9 +399,8 @@ class IterativeCE_RQMC:
                 seed=int(base_seed) + replication,
             )
             losses.append(loss)
-            # A moderately wider pilot band gives a stable, inexpensive l0 for
-            # proposal calibration.  The reported estimator still uses the
-            # single final bandwidth self.bandwidth.
+            # A moderately wider pilot band gives a stable, inexpensive l0 for proposal calibration.  
+            # The reported estimator still uses the single final bandwidth self.bandwidth.
             weights.append(
                 self._conditioning_weight(
                     target_loss,

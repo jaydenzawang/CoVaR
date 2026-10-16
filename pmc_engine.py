@@ -114,9 +114,7 @@ class PlainMonteCarlo:
         total_weight = np.sum(weight)
         if total_weight <= 0:
             raise RuntimeError("PMC produced no effective conditioning samples")
-        # Zero conditioning weights never contribute to the quantile. Keep
-        # normalization and ES sums on the original arrays, but sort only the
-        # effective paths (all positive PMC weights are the same constant).
+
         active = np.flatnonzero(weight > 0)
         order = active[np.argsort(loss[active])]
         cumulative = np.cumsum(weight[order])

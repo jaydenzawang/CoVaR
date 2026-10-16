@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Check factor/LGD quadrature convergence before producing paper tables."""
+"""
+Check factor/LGD quadrature convergence before producing paper tables.
+"""
 
 import numpy as np
 

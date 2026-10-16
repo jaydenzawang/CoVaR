@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Conditional saddlepoint approximations for portfolio CDFs and stop-loss moments.
-
-The saddlepoint equation is solved by a bracketed method with residual checks.
-Continuous Taylor limits are used around the mean, where the raw LR formulas
-contain removable singularities.
+"""
+Conditional saddlepoint approximations for portfolio CDFs and stop-loss moments.
 """
 
 import numpy as np
@@ -44,7 +41,7 @@ class SaddlepointApproximation:
 
     # ------------------------------------------------------------------
     def cgf_deriv(self, s, p_cond, k):
-        """利用向量化极速计算 CGF 的各阶导数"""
+        """Use vector operations to compute CGF derivatives fast"""
         p_cond = np.asarray(p_cond, dtype=float)
         if p_cond.shape != self.portfolio.u.shape:
             raise ValueError("p_cond must have one entry per obligor")
@@ -129,7 +126,7 @@ class SaddlepointApproximation:
 
     # ------------------------------------------------------------------
     def prob_L_minus_i(self, y, p_cond):
-        """SPA 计算条件 CDF（融入极深尾部渐进接管机制）"""
+        """Compute the conditional CDF via SPA (with an asymptotic form for the far tail)"""
         if y < 0:
             return 0.0
         if y == 0:
@@ -152,11 +149,11 @@ class SaddlepointApproximation:
         # ---------------------------------------------------------------
         # Mean-region Taylor evaluation avoids cancellation in the LR terms.
         #
-        # LR bracket 在 ŝ→0 时的解析极限为 λ₃(0)/6，其中
+        # The exact limit of the LR bracket as ŝ→0 is λ₃(0)/6, where
         #   λ₃(0) = K'''(0) / K''(0)^{3/2}
-        # 因此 Taylor 近似为：
+        # Thus the Taylor form is:
         #   F(y) ≈ Φ(z) + φ(z) · λ₃(0)/6，  z = (y - μ) / √κ₂
-        # 与全公式在边界处仅相差 O(ŝ)，实现平滑衔接。
+        # The gap from the full formula at the boundary is only O(ŝ), for a smooth join.
         # ---------------------------------------------------------------
         if abs(s_hat) < self.mean_region:
             K2_0 = self.cgf_deriv(0, p_cond, 2)
@@ -185,7 +182,7 @@ class SaddlepointApproximation:
         lam3 = K3 / (K2 ** 1.5)
         lam4 = K4 / (K2 ** 2.0)
 
-        # 论文四阶 SPA 尾部分布公式 (eq. SPA F)
+        # Fourth-order SPA tail formula in the paper (eq. SPA F)
         bracket = (1.0 / w_hat - 1.0 / v_hat
                    - 1.0 / w_hat**3 + 1.0 / v_hat**3
                    + lam3 / (2.0 * v_hat**2)
@@ -193,11 +190,8 @@ class SaddlepointApproximation:
         return np.clip(norm.cdf(w_hat) + norm.pdf(w_hat) * bracket, 0.0, 1.0)
 
     def density_upper_bound(self, y, p_cond, s):
-        """Exponential bound on the continuous density (beta shapes >= 1).
-
-        Under exponential tilting, partition by the first default and bound
-        each convolution by the supremum of that obligor's tilted density.
-        Summing over all obligors is a conservative union bound.
+        """
+        Exponential bound on the continuous density (beta shapes >= 1).
         """
         a, b, u = (x[self.mask] for x in (self.portfolio.a, self.portfolio.b, self.portfolio.u))
         if np.any(a < 1) or np.any(b < 1):
@@ -223,10 +217,8 @@ class SaddlepointApproximation:
         return float(np.exp(min(log_bound, 700)))
 
     def density(self, y, p_cond):
-        """Second-order Daniels density for the continuous positive-loss part.
-
-        Unbracketed saddles are discarded only with a separate exponential
-        density bound, never merely a probability-tail bound.
+        """
+        Second-order Daniels density for the continuous positive-loss part.
         """
         if y <= 0 or y >= self.support_max:
             return 0.0
@@ -248,11 +240,8 @@ class SaddlepointApproximation:
 
     # ------------------------------------------------------------------
     def stop_loss_L_minus_i(self, y, p_cond):
-        """Approximate E[(L_{-i}-y)^+ | Theta] directly.
-
-        This implements the second-order-pole saddlepoint formula in the draft.
-        It deliberately does not form a difference between a tail first moment
-        and a separately approximated tail probability.
+        """
+        Approximate E[(L_{-i}-y)^+ | Theta] directly.
         """
         p_cond = np.asarray(p_cond, dtype=float)
         mu_cond = np.sum(
