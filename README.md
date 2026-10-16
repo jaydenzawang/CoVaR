@@ -133,7 +133,7 @@ ES automatically calculates the corresponding quantile first; PMC and CE-RQMC re
 CONDITION_MODE = "equality"   # or "inequality"
 
 target_i = 200               # Zero-based index; 200 is the 201st institution
-alpha = 0.99                 # Confidence level for the distress threshold
-beta = 0.99                  # Confidence level for the conditional quantile / ES
+alpha = 0.99                 # Confidence level
+beta = 0.99                  # Confidence level
 
 ```
