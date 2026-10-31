@@ -2,7 +2,7 @@
 
 ## 0. Quick Start
 
-1. Select the method and measures in `main.py`. The current default computes CoVaR and CoES using SPA:
+1. Select the method and measures in `main.py`.
 
    ```python
    # "spa", "pmc", "ce_rqmc"
@@ -10,15 +10,15 @@
    return run_calculation("spa", "coes", cfg)
    ```
 
-2. Set the model and distress parameters in `config.py`, or keep the defaults for a first run:
+2. Set the model and distress parameters in `config.py`.
 
    ```python
-   COPULA_TYPE = 't' # 'Gaussian', 't', or 'Skew-t'
-   XI = 1.0  # Dependence parameter for Gumbel copula
-   CONDITION_MODE = "equality" # "equality" or "inequality"
-   target_i = 200  # The 201st obligor
-   alpha = 0.99  # or 0.999
-   beta = 0.99  # or 0.999
+   COPULA_TYPE = 't'              # 'Gaussian', 't', or 'Skew-t'
+   XI = 1.0                       # Dependence parameter for Gumbel copula
+   CONDITION_MODE = "equality"    # "equality" or "inequality"
+   target_i = 200                 # The 201st obligor
+   alpha = 0.99                   # or 0.999
+   beta = 0.99                    # or 0.999
    ```
 
    The default portfolio contains 500 obligors. See Sections 2 and 3 below for other methods, measures, and parameters.
@@ -34,14 +34,14 @@
 ## 1. Files
 
 ```text
-config.py                         Parameters and runtime controls
+config.py                         Parameters
     ↓
 model_factory.py                  Construct portfolio, Copula, factor integration, and SPA parameters
     ↓
 Computation core
     ├─ risk_engine.py             Four types of risk measures via SPA
-    │    ├─ spa.py                SPA for CDF, density, and stop-loss
-    │    └─ exposure_spa.py       Marked-law SPA for L | L_i <= y
+    │    ├─ spa.py                SPA for cdf, density, and tail expectation
+    │    └─ exposure_spa.py       SPA for L | L_i <= y
     ├─ pmc_engine.py              Plain Monte Carlo
     └─ ce_rqmc_engine.py          Iterative CE and randomized QMC
     ↓
@@ -54,7 +54,7 @@ Supporting modules:
 
 - `copula.py`, `gumbel_interplay.py`: Copula, Gumbel dependence, and conditional default probabilities.
 - `factor_integration.py`: Gauss–Legendre/Rosenblatt integration nodes and weights in probability space.
-- `loss_model.py`: Beta LGD model and the first four derivatives of the MGF.
+- `loss_model.py`: Beta LGD model and the first four derivatives of the mgf.
 - `var_calc.py`: Analytical calculation of individual VaR; portfolio VaR is calculated by the SPA risk engine.
 
 For a given risk measure, all three methods share the portfolio parameters, confidence levels, conditioning direction, and distress-threshold conventions.
