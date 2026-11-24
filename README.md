@@ -7,6 +7,11 @@
    ```python
    # "spa", "pmc", "ce_rqmc"
    # "covar", "coes", "ecovar", "ecoes"
+
+   # Usually, select "coes" or "ecose"
+   # Select "coes", output values of CoVaR and CoES
+   # Select "ecoes", output values of E-CoVaR and E-CoES
+   
    return run_calculation("spa", "coes", cfg)
    ```
 
