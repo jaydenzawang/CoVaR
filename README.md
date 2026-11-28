@@ -1,5 +1,7 @@
 # CoVaR Main Computation Program
 
+See, https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7759400
+
 ## 0. Quick Start
 
 1. Select the method and measures in `main.py`.
